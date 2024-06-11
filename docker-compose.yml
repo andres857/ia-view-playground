@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+
+  web:
+    image: nginx:stable-bullseye
+    ports:
+      - "9094:80"
+    volumes:
+      - ./html:/usr/share/nginx/html
