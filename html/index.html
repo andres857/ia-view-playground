@@ -17,8 +17,13 @@
         crossorigin="anonymous"></script>
     <!-- CDN de Axios -->
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- video JS -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <!-- Video js -->
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
     <!-- CDN de Vue.js 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
 </head>
 
 <body>
@@ -100,15 +105,13 @@
                     </div>
                     <div class="modal-body mx-auto ">
                         <div>
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                            class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 text-danger" style="width: 10rem; height: 10rem;" fill="red" viewBox="0 0 16 16"
-                            role="img" aria-label="Warning:">
-                            <path
-                                d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
-                            
-                        </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg"
+                                class="bi bi-exclamation-triangle-fill flex-shrink-0 me-2 text-danger" style="width: 10rem; height: 10rem;" fill="red" viewBox="0 0 16 16"
+                                role="img" aria-label="Warning:">
+                                <path
+                                    d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z" />
+                            </svg>
                         </div> 
-                        
                     </div>
 
                     <h3 class="mx-auto ">Seleccione un archivo de video para subir.</h3>
@@ -157,12 +160,41 @@
                 </div>
             </div>
         </div>
-    
+        <!-- testing zone -->
+        <div class="mb-3">
+            <div class="input-group">
+              <span class="input-group-text" id="basic-addon3">URL</span>
+              <input type="text" class="form-control" row=2 id="basic-url" v-model.trim="urlVideo" aria-describedby="basic-addon3 basic-addon4">
+              <button class=" btn btn-primary" :disabled="!isUrlValida"> Obtener Transcripcion</button>
+            </div>
+            <div class="form-text" id="basic-addon4">Ingrese la url del video</div>
+        </div>
+
+        <!-- preview Video  -->
+        <div  class="row justify-content-center">
+            Porcentaje visto del video: {{progressVideoPorcen}} %
+            <div v-show="isUrlValida" class="col-12">
+
+                <video
+                ref="videoSource"
+                    id="my-video"
+                    class="video-js"
+                    controls
+                    preload="auto"
+                    width="720"
+                    height="264"
+                    data-setup="{}"
+                    >
+                    <source :src="processedUrl" type="video/mp4" />
+                </video>
+            </div>
+        </div>
     </div>
 
 
     <script>
-        const { createApp, ref, onMounted, watch } = Vue
+        const { createApp, ref, onMounted, watch, computed } = Vue
+
 
         createApp({
             setup() {
@@ -200,6 +232,15 @@
                     },
                 ]);
 
+                urlVideo = ref('');
+                const videoSource = ref(null);
+                const playerState = ref(null);
+                const playerEvents = ref([]);
+                const progressVideoPorcen = ref('');
+                const updateCount = ref(0);
+                const requiredPercentage = 80; // Porcentaje requerido para avanzar
+                const requiredUpdates = ref(0);
+
                 const handleFileUpload = (event) => {
                     selectedVideoFile.value = event.target.files[0];
                     const fileExtension = selectedVideoFile.value.name.split('.').pop().toLowerCase();
@@ -213,9 +254,6 @@
                 const showModalProgress = () => {
                     const modal = new bootstrap.Modal(document.getElementById('modalProgress'));
                     modal.show();
-                    // setTimeout(() => {
-                    //     modal.hide();
-                    // }, 2000);
                 };
 
                 const uploadVideo = async () => {
@@ -343,6 +381,86 @@
                 watch(agentesSeleccionados, async () => {
                     await getAgents();
                 });
+                
+                const processedUrl = computed(() => {
+                    try {
+                        const url = new URL(urlVideo.value)
+                        console.log(url);
+                        return url.href
+                    } catch (error) {
+                        return 'URL inválida'
+                    }
+                })
+                const isUrlValida = computed(() => processedUrl.value !== 'URL inválida')
+
+                watch(processedUrl, (newUrl) => {
+                    if (videoSource.value) {
+                        videoSource.value.src = newUrl
+                    }
+                })
+
+                const initVideoPlayer = () => {
+                    if (videoSource.value) {
+                        const player = videojs(videoSource.value, {}, function() {
+                        
+                            // Escuchar eventos aquí
+                        this.on('loadedmetadata', () => {
+                            const duration = this.duration();
+                            requiredUpdates.value = calculateRequiredUpdates(duration);
+                            console.log(duration/60);
+                            console.log(requiredUpdates.value);
+                        })
+
+                        this.on('timeupdate', () => {
+                            updateCount.value++
+                            const currentPercentage = (updateCount.value / requiredUpdates.value) * 100
+                            progressVideoPorcen.value = currentPercentage.toFixed(2)
+
+                            playerEvents.value.push(playerState.value)
+                        })
+
+                        this.on('error', (error) => {
+                            playerState.value = 'error'
+                            playerEvents.value.push('error')
+                            console.error('Error al cargar el video:', error)
+                        })
+
+                        this.on('ended', () => {
+                            playerState.value = 'ended'
+                            playerEvents.value.push('ended')
+                        })                        
+                    })
+                }
+                }
+                
+                // eventos del reproductor
+                // watch(playerState, (newState) => {
+                //     // if (newState === 'error') {
+                //     //     // Realizar acciones específicas cuando ocurre un error
+                //     //     console.log('Se produjo un error en el reproductor')
+                //     // } else if (newState === 'loadedmetadata') {
+                //     //     // Realizar acciones específicas cuando los metadatos se han cargado
+                //     //     console.log('Los metadatos del video se han cargado')
+                //     // } else if (newState === 'timeupdate') {
+                //     //     // Realizar acciones específicas durante la reproducción del video
+                //     //     console.log('Reproduciendo el video')
+                //     // } else if (newState === 'ended') {
+                //     //     // Realizar acciones específicas cuando el video ha terminado
+                //     //     console.log('El video ha terminado')
+                //     // }
+                //     if (newState.progress) {
+                //         progressVideoPorcen.value = newState.progress;                        
+                //     }
+                // })
+
+                const calculateRequiredUpdates = (duration) => {
+                    const totalUpdates = Math.floor(duration * 4) // Aproximadamente 4 actualizaciones por segundo
+                    return Math.ceil((totalUpdates * requiredPercentage) / 100)
+                }
+
+                onMounted(()=>{
+                    initVideoPlayer()
+                })
 
                 return {
                     handleFileUpload,
@@ -359,9 +477,10 @@
                     agentesSeleccionados,
                     inferencias,
                     editMode,
-                    inferenciaNames,loader, viewProgress, tasks
+                    inferenciaNames,loader, viewProgress, tasks, urlVideo, processedUrl,isUrlValida, videoSource,playerEvents, progressVideoPorcen
                 };
             }
+            
         }).mount('#app')
     </script>
 
@@ -370,10 +489,22 @@
             width: 20px;
             height: 20px;
         }
+        .loader-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(255, 255, 255, 0.7);
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
+
 
 </body>
 
