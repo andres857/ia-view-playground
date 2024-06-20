@@ -29,8 +29,9 @@
 <body>
 
     <div id="app" class="container mt-3">
-        <!-- <button class="btn btn-primary" @click="getClients"> listar Clientes </button> -->
+        <button class="btn btn-primary" @click="getContentsVideosFromClientId(2)"> listar URL </button>
         Clientes
+
         <div v-if="isClientsLoaded">
             <table class="table table-striped">
                 <thead>
@@ -50,6 +51,20 @@
               </table>
         </div>
 
+        <div>
+            <table class="table table-striped">
+                <thead>
+                  <tr>
+                    <th>urlVideo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="video, index in listVideos" :key="index" >
+                    <td>{{ video }}</td>
+                  </tr>
+                </tbody>
+              </table>
+        </div>
 
         <div v-if="true">
         <!-- <button class="btn btn-primary" @click="getClubsByClient(2)"> listar Clubs </button> -->
@@ -108,7 +123,7 @@
                 const isVideoListLoaded = ref(false);
                 const contentClubs = ref([]);
                 const flatArray = ref([]);
-
+                const listVideos = ref([]);
 
                 const getClients = async () => {
                     try {
@@ -167,21 +182,59 @@
                     );
                 };
 
+                const getUrlContent = async (idContent) => {
+                    try {
+                        const response = await axios.get(`${apiHost}/mzg/content/video/${idContent}`);
+                        if (response.status !== 200) {
+                            console.log('Error obteniendo la url del contenido');
+                        } else {
+                            const url = response.data;
+                            console.log(url);
+                        }
+                    } catch (error) {
+                        // statusUpload.value = error.message;
+                        console.error(error);
+                    }
+                };
+
+                const getContentsVideosFromClientId = async (idClient) => {
+                    try {
+                        const response = await axios.get(`${apiHost}/mzg/client/${idClient}/content/video`);
+                        if (response.status !== 200) {
+                            console.log('Error obteniendo la url del contenido');
+                        } else {
+                            listVideos.value = response.data;
+                        }
+                    } catch (error) {
+                        // statusUpload.value = error.message;
+                        console.error(error);
+                    }
+                };
+
                 const selectClient = async (client) => {
                     selectedClient.value = client;
                     console.log('Cliente Select', selectedClient.value);
                     // lista los clubs "grupos" de los clientes con el idClient
-                    await getClubsByClient(selectedClient.value.id);
-                    // obterner los contenidos de todos los grupos del cliente
-                    await getContentsFromAllClubs();
-                    flatArray.value = contentClubs.value.flat().filter(obj => obj); // Eliminar elementos vacíos
+                    getContentsVideosFromClientId(selectedClient.value.id)
 
                     // await getContentsByIdClub(selectedClient.value.id, clubs.value.id )
                 }
+                // const selectClient = async (client) => {
+                //     selectedClient.value = client;
+                //     console.log('Cliente Select', selectedClient.value);
+                //     // lista los clubs "grupos" de los clientes con el idClient
+                //     await getClubsByClient(selectedClient.value.id);
+                //     // obterner los contenidos de todos los grupos del cliente
+                //     await getContentsFromAllClubs();
+                //     flatArray.value = contentClubs.value.flat().filter(obj => obj); // Eliminar elementos vacíos
+
+                //     // await getContentsByIdClub(selectedClient.value.id, clubs.value.id )
+                // }
 
                 onMounted(async () => {
                     await getClients();
                 });
+
                 return{
                     getClients,
                     clients,
@@ -195,8 +248,8 @@
                     isVideoListLoaded,
                     getContentsByIdClub,
                     contentClubs,
-                    flatArray
-
+                    flatArray,
+                    getUrlContent,listVideos,getContentsVideosFromClientId
                 }
             }
             
